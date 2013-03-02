@@ -49,11 +49,18 @@ say "Starting URL is: $start";
 
 my $mech = WWW::Mechanize->new( autocheck => 1 );
 $mech->get( $start );
+$mech->content =~ m/md5sum: (\d+)/g;
+my $md5sum = $1;
+say "FOUND MD5: $md5sum";
+exit;
 
 my $zip = ( $mech->find_all_links( url_regex => qr/\d{8}\-\w+\-$device\.zip$/ ) )[0]; # first link on page is most recent;
-
 my $url = $zip->url_abs;    # retrieve full URL from object;
+
 say "Fetching image at $url" if $verbose;    # chatty output;
 $mech->get( $url );                          # go grab that url;
-$mech->save_content( 'cyanogenmod-image.zip' ) or die "Could not save image to disk $!";
+my $filename = 'cyanogenmod-image.zip';
+$mech->save_content( $filename ) or die "Could not save image to disk $!";
 
+say "Verifying file integrity (md5sum: $md5sum)...";
+`checkmd5 $md5sum $filename`;
