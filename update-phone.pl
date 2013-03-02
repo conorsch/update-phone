@@ -2,16 +2,19 @@
 # quick script to grab newest video file from phone;
 use strict;
 use warnings;
-use diagnostics;       # useful for debugging;
-use feature 'say';     # beats print;
-use Getopt::Long;      # for parsing command-line options;
-use WWW::Mechanize;    # for reading web pages programmatically;
-use Storable;          # for saving files found by WWW::Mechanize;
+use diagnostics;          # useful for debugging;
+use feature 'say';        # beats print;
+use Getopt::Long;         # for parsing command-line options;
+use WWW::Mechanize;       # for reading web pages programmatically;
+use Storable;             # for saving files found by WWW::Mechanize;
+$|++;                     # disable readline buffering for real-time output;
 
 my $usage = <<'END';
-ScriptName
+update-phone
 
-. 
+Grabs the newest CyanogenMod nightly and flashes phone with it. 
+Defaults to 'maguro' device type (Galaxy Nexus), and the most 
+recent nightly.
 
 Usage: 
      --option 1        
@@ -43,24 +46,26 @@ if ( $help ) {    # if user requested usage information;
 
 $device = 'maguro'  unless $device;
 $type   = 'nightly' unless $type;
+$verbose = 1;      # debugging;
 
 my $start = "http://download.cyanogenmod.com/?device=$device&type=$type";
-say "Starting URL is: $start";
 
 my $mech = WWW::Mechanize->new( autocheck => 1 );
-$mech->get( $start );
-$mech->content =~ m/md5sum: (\d+)/g;
-my $md5sum = $1;
-say "FOUND MD5: $md5sum";
-exit;
+print "Looking up latest CyanogenMod nightly for $device platform... " if $verbose;    # chatty output;
+$mech->get( $start );                                                                  #
+say "done." if $verbose;                                                               # chatty output;
 
-my $zip = ( $mech->find_all_links( url_regex => qr/\d{8}\-\w+\-$device\.zip$/ ) )[0]; # first link on page is most recent;
-my $url = $zip->url_abs;    # retrieve full URL from object;
+$mech->content =~ m/md5sum: (\w{32})/g;                                                # find MD5 for checking;
+my $md5sum = $1;                                                                       # store matched MD5 sum;
 
-say "Fetching image at $url" if $verbose;    # chatty output;
-$mech->get( $url );                          # go grab that url;
-my $filename = 'cyanogenmod-image.zip';
-$mech->save_content( $filename ) or die "Could not save image to disk $!";
+my $zip = ( $mech->find_all_links( url_regex => qr/\d{8}\-\w+\-$device\.zip$/ ) )[ 0 ];    # first link on page is most recent;
+my $url = $zip->url_abs;                                                                   # retrieve full URL from object;
 
-say "Verifying file integrity (md5sum: $md5sum)...";
-`checkmd5 $md5sum $filename`;
+say "Fetching image at $url" if $verbose;                                                  # chatty output;
+my $filename = ( split( /\//, $url ) )[ -1 ];                                              # grab name of zipped image file by splitting on URL's /s;
+$mech->get( $url );                                                                        # go grab that url;
+unlink $filename if -e $filename;                                                          # clobber any previous version;
+$mech->save_content( $filename );                                                          # download that file;
+
+say "Verifying file integrity (md5sum: $md5sum)..." if $verbose;                           # chatty output;
+system( 'checkmd5', $md5sum, $filename ) == 0 or die;                                      # make sure the file is what it should be before we flash;
