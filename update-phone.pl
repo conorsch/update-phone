@@ -7,6 +7,7 @@ use feature 'say';     # beats print;
 use Getopt::Long;      # for parsing command-line options;
 use WWW::Mechanize;    # for reading web pages programmatically;
 use Storable;          # for saving files found by WWW::Mechanize;
+use Adb;               # for OO-style interaction with Android SDK's adb;
 $|++;                  # disable readline buffering for real-time output;
 
 my $usage = <<'END';
@@ -50,7 +51,14 @@ $device = 'maguro'  unless $device;
 $type   = 'nightly' unless $type;
 $verbose = 1;      # debugging;
 
-download();
+my $adb = Adb->new;
+$adb->start;
+$adb->devices;
+$adb->reboot( 'recovery' ) or die "WHAT HAPPENED TO REBOOTING?";
+
+$adb->stop;
+exit;
+my $nightly = download();
 
 sub download {     # go grab that file;
 
@@ -81,5 +89,7 @@ sub download {     # go grab that file;
     $mech->save_content( $filename );                                              # download that file;
 
     say "Verifying file integrity (md5sum: $md5sum)..." if $verbose;               # chatty output;
-    system( 'checkmd5', $md5sum, $filename ) == 0 or die;                          # make sure the file is what it should be before we flash;
+    system( 'checkmd5', $md5sum, $filename ) == 0 or return;                          # make sure the file is what it should be before we flash;
+    return $filename; # pass back filename to caller;
 }
+
