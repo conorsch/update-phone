@@ -47,22 +47,32 @@ sub start {                                                               # fire
     $self->running( 1 );                                                  # set 'running' to True;
 }
 
-sub stop {                                                                # fire up the Android SDK's Android Debugging Bridge (adb) server;
+sub sideload {                                                            # push flashable image file, in ZIP format, to device;
     my $self = shift;                                                     # unpack class object from caller;
-    say "Stopping adb server... " if $verbose;                            # chatty output;
-    return unless $self->running;                                         # don't bother stopping server if it's not running;
+    my $image_file = shift or return;
+    return unless ( $self->running and -e $image_file );                      # don't bother trying to push image if server isn't running;
 
-    system( "sudo adb -d kill-server >/dev/null" ) == 0 or return;        # shell out to stop adb server;
-    $self->running( 0 );                                                  # set 'running' to False;
+    say "Pushing image file to phone... " if $verbose;
+
+    system( "sudo adb -d sideload '$image_file' >/dev/null" ) == 0 or return;    # shell out to start adb server;
 }
 
-sub devices {                                                             # find attached devices;
-    my $self = shift;                                                     # unpack class object from caller;
+sub stop {                                                                       # fire up the Android SDK's Android Debugging Bridge (adb) server;
+    my $self = shift;                                                            # unpack class object from caller;
+    say "Stopping adb server... " if $verbose;                                   # chatty output;
+    return unless $self->running;                                                # don't bother stopping server if it's not running;
+
+    system( "sudo adb -d kill-server >/dev/null" ) == 0 or return;               # shell out to stop adb server;
+    $self->running( 0 );                                                         # set 'running' to False;
+}
+
+sub devices {                                                                    # find attached devices;
+    my $self = shift;                                                            # unpack class object from caller;
     $self->start unless $self->running;
 
     my @devices = `sudo adb devices`;
-    shift @devices;                                                       # throw away first line, which is just headers;
-    chomp @devices;                                                       # remove pesky trailing newlines from items;
+    shift @devices;                                                              # throw away first line, which is just headers;
+    chomp @devices;                                                              # remove pesky trailing newlines from items;
     say "Found these devices: @devices";
 }
 

@@ -54,11 +54,12 @@ $verbose = 1;      # debugging;
 my $adb = Adb->new;
 $adb->start;
 $adb->devices;
-$adb->reboot( 'recovery' ) or die "WHAT HAPPENED TO REBOOTING?";
+#$adb->reboot( 'recovery' );
 
+my $nightly = download();
+$adb->sideload( $nightly ) or die "Sideloading failed.";
 $adb->stop;
 exit;
-my $nightly = download();
 
 sub download {     # go grab that file;
 
